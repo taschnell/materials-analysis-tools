@@ -121,10 +121,15 @@ def residuals(params):
 
     psi_model, delta_model = model(params)
 
+    delta_residual = (delta_model - delta_exp + 180) % 360 - 180
+
+    psi_weight = 1.0
+    delta_weight = 1.0
+
     return np.concatenate(
         [
-            psi_model - psi_exp,
-            delta_model - delta_exp
+            psi_weight * (psi_model - psi_exp),
+            delta_weight * delta_residual
         ]
     )
 
@@ -132,7 +137,7 @@ def residuals(params):
 # =====================================================
 # 4. Load and process data
 # =====================================================
-
+angles = [65.02, 70.02, 75.02] 
 MEASURE_ANGLE = 75.02  # degrees
 
 requested_name = sys.argv[1] if len(sys.argv) > 1 else None
@@ -169,7 +174,7 @@ print(f"Using {MEASURE_ANGLE} degrees measurement angle with {len(wavelength_exp
 # 5. Main execution
 # =====================================================
 
-initial_params = [150, 1.68, 50, 0.2, 2.4, 0.35, 5.9, 0.07]
+initial_params = [150, 1.8, 50, 0.2, 2.4, 0.35, 5.9, 0.07]
 
 psi_initial, delta_initial = model(initial_params)
 
@@ -177,8 +182,8 @@ fit = least_squares(
     residuals,
     x0=initial_params,
     bounds=(
-        [1, 0.1, 1, 0.01, 0.1, 0.01, 1, 0.01],
-        [2000, 10, 500, 5, 20, 0.5, 20, 1]
+        [50, 0.5, 1, 0.01, 0.1, 0.1, 1, 0.01],
+        [200, 3, 500, 5, 15, 1.0, 20, 0.25]
     )
 )
 
@@ -202,6 +207,8 @@ print(f"  Eu (eV):         {fit.x[7]:.4f}")
 print()
 print(f"Mean squared error: {np.mean(fit.fun**2):.6f}")
 print("=" * 50)
+
+
 
 # Get model predictions with fitted parameters
 psi_model, delta_model = model(fit.x)
