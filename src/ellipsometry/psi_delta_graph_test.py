@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 # New output directory
-PLOT_DIR = Path(__file__).resolve().parents[0] / "plots"
+PLOT_DIR = Path(__file__).resolve().parents[2] / "plots" / "psi_delta_graphs"
 PLOT_DIR.mkdir(exist_ok=True)
 
 csv_files = sorted(DATA_DIR.glob("*.csv"))

@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "ellipsometry" 
 
 
 def _load_csv_data(csv_path):

@@ -1,7 +1,9 @@
 from pathlib import Path
 import pandas as pd
 
-DATA_DIR = Path("../../data")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+DATA_DIR = PROJECT_ROOT / "data" / "ellipsometry" 
 
 ANGLES = [65.02, 70.02, 75.02]
 
@@ -62,12 +64,6 @@ def convert_file(txt_path):
     csv_path = txt_path.with_suffix(".csv")
 
     out.to_csv(csv_path, index=False)
-
-    # out.to_csv(
-    #     txt_path.with_suffix(".csv"),
-    #     index=False,
-    #     sep=" "
-    # )
 
     print(f"  Saved {csv_path.name}")
 
