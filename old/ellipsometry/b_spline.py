@@ -1,8 +1,8 @@
-# src/ellipsometry/fit_Se.py
+# src/ellipsometry/b_spline.py
 import sys
 
 from load_data import load_elippso_data
-from cody_ellipsometry_fitting import CodyLorentzRoughFilmModel, CodyEllipsometryFitter, MeasurementDataset
+from cody_ellipsometry_fitting import B_SplineEllipsometryModel, MeasurementDataset
 
 
 def main() -> None:
@@ -18,17 +18,11 @@ def main() -> None:
     print(f"Using measurement angles: {dataset.fit_angles}")
     print(f"Using {len(dataset.fit_angles)} measurement angles with {len(dataset.wavelength_exp)} total data points.")
 
-    model = CodyLorentzRoughFilmModel()
-    fitter = CodyEllipsometryFitter(dataset, model)
+    model = B_SplineEllipsometryModel(dataset)
 
-    fitter.run(
-        initial_params=[106.0, 3.6, 1.8, 50.0, 0.2, 2.4, 0.35, 5.9, 0.07],
-        bounds=(
-            [50.0, 0.0, 1.8, 1.0, 0.01, 0.1, 0.1, 1.0, 0.01],
-            [170.0, 10.0, 2.5, 200.0, 5.0, 10.0, 1.0, 20.0, 0.15],
-        ),
-    )
 
+    model.run()
+    
 
 if __name__ == "__main__":
     main()
