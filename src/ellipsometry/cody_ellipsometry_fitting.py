@@ -13,7 +13,7 @@ import numpy as np
 from scipy.optimize import least_squares
 
 import elli
-from elli.dispersions import CodyLorentz
+from elli.dispersions import CodyLorentz, LorentzEnergy
 from elli.materials import BruggemanEMA, IsotropicMaterial
 from elli.structure import Layer, Structure
 
@@ -112,10 +112,11 @@ class CodyLorentzRoughFilmModel(BaseEllipsometryModel):
             "Ep_eV",
             "E0_eV",
             "Eu_eV",
+            "void_fraction",
         ]
 
     def build_structure(self, params: Sequence[float]):
-        film_thickness, roughness_thickness, Eg, A, Et, gamma, Ep, E0, Eu = params
+        film_thickness, roughness_thickness, Eg, A, Et, gamma, Ep, E0, Eu, void_fraction = params
 
         film_dispersion = CodyLorentz(
             Eg=Eg,
@@ -126,7 +127,92 @@ class CodyLorentzRoughFilmModel(BaseEllipsometryModel):
             E0=E0,
             Eu=Eu,
         )
+
+        self.roughness_fraction = void_fraction
         film_material = IsotropicMaterial(film_dispersion)
+        rough_film_material = BruggemanEMA(film_material, self.ambient_material, self.roughness_fraction)
+
+        film_layer = Layer(film_material, film_thickness)
+        roughness_layer = Layer(rough_film_material, roughness_thickness)
+
+        return Structure(self.ambient_material, [roughness_layer, film_layer], self.substrate_material)
+
+
+class CodyLorentzRoughFilmModelTwoCody(CodyLorentzRoughFilmModel):
+    @property
+    def parameter_names(self) -> list[str]:
+        return [
+            "film_thickness_nm",
+            "roughness_thickness_nm",
+            "Eg_eV",
+            "A_1_eV",
+            "Et_1_eV",
+            "gamma_1",
+            "Ep_1_eV",
+            "E0_1_eV",
+            "Eu_1_eV",
+            "A_2_eV",
+            "Et_2_eV",
+            "gamma_2",
+            "Ep_2_eV",
+            "E0_2_eV",
+            "Eu_2_eV",
+            "A_fun (unitless?)",
+            "E_0_fun_eV",
+            "gamma_fun",
+        ]
+
+    def build_structure(self, params: Sequence[float]):
+        (
+            film_thickness,
+            roughness_thickness,
+            Eg,
+            A_1,
+            Et_1,
+            gamma_1,
+            Ep_1,
+            E0_1,
+            Eu_1,
+            A_2,
+            Et_2,
+            gamma_2,
+            Ep_2,
+            E0_2,
+            Eu_2,
+            A_fun,
+            E0_fun,
+            gamma_fun,
+        ) = params
+
+        film_dispersion_1 = CodyLorentz(
+            Eg=Eg,
+            A=A_1,
+            Et=Et_1,
+            gamma=gamma_1,
+            Ep=Ep_1,
+            E0=E0_1,
+            Eu=Eu_1,
+        )
+
+        film_dispersion_2 = CodyLorentz(
+            Eg=Eg,
+            A=A_2,
+            Et=Et_2,
+            gamma=gamma_2,
+            Ep=Ep_2,
+            E0=E0_2,
+            Eu=Eu_2,
+        )
+
+        film_dispersion_3 = LorentzEnergy().add(
+            A= A_fun,
+            E = E0_fun,
+            gamma = gamma_fun,
+
+        )
+
+        film_material = IsotropicMaterial(film_dispersion_1 + film_dispersion_2 + film_dispersion_3)
+
         rough_film_material = BruggemanEMA(film_material, self.ambient_material, self.roughness_fraction)
 
         film_layer = Layer(film_material, film_thickness)
@@ -184,8 +270,13 @@ class CodyEllipsometryFitter:
         print("=" * 50)
 
     def _plot_psi_delta(self, fit) -> None:
+        
+        
+
+        
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
+        
         delta_model_nearest = self.dataset.delta_exp + self.dataset.delta_residual
 
 
@@ -197,6 +288,21 @@ class CodyEllipsometryFitter:
 
             ax2.plot(self.dataset.wavelength_exp[mask], self.dataset.delta_exp[mask], "o", alpha=0.6)
             ax2.plot(self.dataset.wavelength_exp[mask], delta_model_nearest[mask], "-", linewidth=2)
+
+        param_text = (
+            f"Film Thickness = {fit.x[0]:.2f} nm\n"
+            f"Roughness Thickness = {fit.x[1]:.2f} nm\n"
+            f"Eg = {fit.x[2]:.4f} eV\n"
+            f"A = {fit.x[3]:.4f} eV\n"
+            f"Et = {fit.x[4]:.4f} eV\n"
+            f"Gamma = {fit.x[5]:.4f}\n"
+            f"Ep = {fit.x[6]:.4f} eV\n"
+            f"E0 = {fit.x[7]:.4f} eV\n"
+            f"Eu = {fit.x[8]:.4f} eV\n"
+            f"\n"
+            f"Psi RMS = {np.sqrt(np.mean(psi_residual**2)):.3f}°\n"
+            f"Delta RMS = {np.sqrt(np.mean(delta_residual**2)):.3f}°"
+        )
 
         ax1.set_xlabel("Wavelength (nm)")
         ax1.set_ylabel("Psi (degrees)")
