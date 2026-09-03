@@ -243,8 +243,8 @@ class CodyEllipsometryFitter:
         return result
 
     def run(self, initial_params: Sequence[float], bounds: Sequence[Sequence[float]]) -> None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.output_dir = self.output_root / self.dataset.name / timestamp
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.output_dir = self.output_root / self.dataset.name / self.timestamp
         self.output_dir.mkdir(parents=True, exist_ok=True)
         print(f"Saving output to: {self.output_dir}")
 
@@ -271,9 +271,6 @@ class CodyEllipsometryFitter:
 
     def _plot_psi_delta(self, fit) -> None:
         
-        
-
-        
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
         
@@ -283,39 +280,46 @@ class CodyEllipsometryFitter:
         for angle in self.dataset.fit_angles:
             mask = self.dataset.angle_mask(angle)
 
-            ax1.plot(self.dataset.wavelength_exp[mask], self.dataset.psi_exp[mask], "o", alpha=0.6)
+            ax1.plot(self.dataset.wavelength_exp[mask], self.dataset.psi_exp[mask], "o", alpha=0.6, label=f'Experimental {angle:.2f}°')
             ax1.plot(self.dataset.wavelength_exp[mask], self.psi_model[mask], "-", linewidth=2)
 
-            ax2.plot(self.dataset.wavelength_exp[mask], self.dataset.delta_exp[mask], "o", alpha=0.6)
+            ax2.plot(self.dataset.wavelength_exp[mask], self.dataset.delta_exp[mask], "o", alpha=0.6, label=f'Experimental {angle:.2f}°')
             ax2.plot(self.dataset.wavelength_exp[mask], delta_model_nearest[mask], "-", linewidth=2)
 
-        param_text = (
-            f"Film Thickness = {fit.x[0]:.2f} nm\n"
-            f"Roughness Thickness = {fit.x[1]:.2f} nm\n"
-            f"Eg = {fit.x[2]:.4f} eV\n"
-            f"A = {fit.x[3]:.4f} eV\n"
-            f"Et = {fit.x[4]:.4f} eV\n"
-            f"Gamma = {fit.x[5]:.4f}\n"
-            f"Ep = {fit.x[6]:.4f} eV\n"
-            f"E0 = {fit.x[7]:.4f} eV\n"
-            f"Eu = {fit.x[8]:.4f} eV\n"
-            f"\n"
-            f"Psi RMS = {np.sqrt(np.mean(psi_residual**2)):.3f}°\n"
-            f"Delta RMS = {np.sqrt(np.mean(delta_residual**2)):.3f}°"
-        )
+        param_text = f"Timestamp: {self.timestamp}\n"
 
+        for idx, name in enumerate(self.model.parameter_names):
+            param_text += (f"{name}: {fit.x[idx]:.3f}\n")
+        
+        param_text += f"\nMean squared error: {np.mean(fit.fun**2):.6f}"
+        
         ax1.set_xlabel("Wavelength (nm)")
         ax1.set_ylabel("Psi (degrees)")
         ax1.set_title("Psi: Experimental vs Model")
         ax1.grid(True, alpha=0.3)
+        ax1.legend()
 
         ax2.set_xlabel("Wavelength (nm)")
         ax2.set_ylabel("Delta (degrees)")
         ax2.set_title("Delta: Experimental vs Model (Residuals adjusted to nearest equivalent)")
         ax2.grid(True, alpha=0.3)
+        ax2.legend()
+
+        # fig.text(
+        #     0.765,          # x position
+        #     0.09,           # y position
+        #     param_text,
+        #     fontsize=9,
+        #     family="monospace",
+        #     bbox=dict(
+        #         boxstyle="round",
+        #         facecolor="white",
+        #         alpha=0.85
+        #     )
+        # )
 
         fig.tight_layout()
-        fig.savefig(self.output_dir / "experimental_vs_model.png", dpi=150)
+        fig.savefig(self.output_dir / f"experimental_vs_model_{self.timestamp}.png", dpi=150)
         plt.close(fig)
 
     def _plot_residuals(self, fit) -> None:
@@ -324,8 +328,10 @@ class CodyEllipsometryFitter:
         for angle in self.dataset.fit_angles:
             mask = self.dataset.angle_mask(angle)
 
-            ax1.plot(self.dataset.wavelength_exp[mask], self.psi_model[mask] - self.dataset.psi_exp[mask], "-", alpha=0.6)
-            ax2.plot(self.dataset.wavelength_exp[mask], self.dataset.delta_residual[mask], "-", alpha=0.6)
+            ax1.plot(self.dataset.wavelength_exp[mask], self.psi_model[mask] - self.dataset.psi_exp[mask], "-", alpha=0.6, label=f'Model Angle {angle:.2f}°')
+            ax2.plot(self.dataset.wavelength_exp[mask], self.dataset.delta_residual[mask], "-", alpha=0.6, label=f'Model Angle {angle:.2f}°')
+            ax1.legend()
+            ax2.legend()
 
         ax1.set_xlabel("Wavelength (nm)")
         ax1.set_ylabel("Psi Residuals (degrees)")
@@ -338,11 +344,11 @@ class CodyEllipsometryFitter:
         ax2.grid(True, alpha=0.3)
 
         fig.tight_layout()
-        fig.savefig(self.output_dir / "residuals.png", dpi=150)
+        fig.savefig(self.output_dir / f"residuals_{self.timestamp}.png", dpi=150)
         plt.close(fig)
 
     def _write_results(self, fit) -> None:
-        with open(self.output_dir / "fit_results.txt", "w", encoding="utf-8") as handle:
+        with open(self.output_dir / f"fit_results_{self.timestamp}.txt", "w", encoding="utf-8") as handle:
             handle.write(f"Success: {fit.success}\n")
             handle.write(f"Message: {fit.message}\n")
             handle.write(f"Number of iterations: {fit.nfev}\n")
