@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import matplotlib
+
+from harmonic_oscillator import HarmonicOscillator
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,8 +18,6 @@ import elli
 from elli.dispersions import CodyLorentz, LorentzEnergy
 from elli.materials import BruggemanEMA, IsotropicMaterial
 from elli.structure import Layer, Structure
-
-from scipy.interpolate import BSpline
 
 
 class MeasurementDataset:
@@ -99,6 +99,45 @@ class BaseEllipsometryModel(ABC):
         return np.asarray(psi_model), np.asarray(delta_model)
 
 
+# class CodyLorentzRoughFilmModel(BaseEllipsometryModel):
+#     @property
+#     def parameter_names(self) -> list[str]:
+#         return [
+#             "film_thickness_nm",
+#             "roughness_thickness_nm",
+#             "Eg_eV",
+#             "A_eV",
+#             "Et_eV",
+#             "gamma",
+#             "Ep_eV",
+#             "E0_eV",
+#             "Eu_eV",
+#             "void_fraction",
+#         ]
+
+#     def build_structure(self, params: Sequence[float]):
+#         film_thickness, roughness_thickness, Eg, A, Et, gamma, Ep, E0, Eu, void_fraction = params
+
+#         film_dispersion = CodyLorentz(
+#             Eg=Eg,
+#             A=A,
+#             Et=Et,
+#             gamma=gamma,
+#             Ep=Ep,
+#             E0=E0,
+#             Eu=Eu,
+#         )
+
+#         self.roughness_fraction = void_fraction
+#         film_material = IsotropicMaterial(film_dispersion)
+#         rough_film_material = BruggemanEMA(film_material, self.ambient_material, self.roughness_fraction)
+
+#         film_layer = Layer(film_material, film_thickness)
+#         roughness_layer = Layer(rough_film_material, roughness_thickness)
+
+#         return Structure(self.ambient_material, [roughness_layer, film_layer], self.substrate_material)
+
+
 class CodyLorentzRoughFilmModel(BaseEllipsometryModel):
     @property
     def parameter_names(self) -> list[str]:
@@ -107,7 +146,7 @@ class CodyLorentzRoughFilmModel(BaseEllipsometryModel):
             "roughness_thickness_nm",
             "Eg_eV",
             "A_eV",
-            "Et_eV",
+            "Et_offset_eV",  # Changed from Et_eV
             "gamma",
             "Ep_eV",
             "E0_eV",
@@ -116,7 +155,21 @@ class CodyLorentzRoughFilmModel(BaseEllipsometryModel):
         ]
 
     def build_structure(self, params: Sequence[float]):
-        film_thickness, roughness_thickness, Eg, A, Et, gamma, Ep, E0, Eu, void_fraction = params
+        (
+            film_thickness,
+            roughness_thickness,
+            Eg,
+            A,
+            Et_offset,
+            gamma,
+            Ep,
+            E0,
+            Eu,
+            void_fraction,
+        ) = params
+
+        # Enforce Et >= Eg
+        Et = Eg + Et_offset
 
         film_dispersion = CodyLorentz(
             Eg=Eg,
@@ -130,12 +183,36 @@ class CodyLorentzRoughFilmModel(BaseEllipsometryModel):
 
         self.roughness_fraction = void_fraction
         film_material = IsotropicMaterial(film_dispersion)
-        rough_film_material = BruggemanEMA(film_material, self.ambient_material, self.roughness_fraction)
+
+        rough_film_material = BruggemanEMA(
+            film_material,
+            self.ambient_material,
+            self.roughness_fraction,
+        )
 
         film_layer = Layer(film_material, film_thickness)
-        roughness_layer = Layer(rough_film_material, roughness_thickness)
+        roughness_layer = Layer(
+            rough_film_material,
+            roughness_thickness,
+        )
 
-        return Structure(self.ambient_material, [roughness_layer, film_layer], self.substrate_material)
+        return Structure(
+            self.ambient_material,
+            [roughness_layer, film_layer],
+            self.substrate_material,
+        )
+
+# class CodyLorentzRoughFilmModelOrdered(CodyLorentzRoughFilmModel):
+#     @property
+#     def parameter_names(self) -> list[str]:
+#         names = super().parameter_names.copy()
+#         names[4] = "Et_minus_Eg_eV"
+#         return names
+
+#     def build_structure(self, params: Sequence[float]):
+#         ordered_params = list(params)
+#         ordered_params[4] = ordered_params[2] + ordered_params[4]
+#         return super().build_structure(ordered_params)
 
 
 class CodyLorentzRoughFilmModelTwoCody(CodyLorentzRoughFilmModel):
@@ -146,20 +223,20 @@ class CodyLorentzRoughFilmModelTwoCody(CodyLorentzRoughFilmModel):
             "roughness_thickness_nm",
             "Eg_eV",
             "A_1_eV",
-            "Et_1_eV",
+            "Et_offset_1_eV",
             "gamma_1",
             "Ep_1_eV",
             "E0_1_eV",
             "Eu_1_eV",
             "A_2_eV",
-            "Et_2_eV",
+            "Et_offset_2_eV",
             "gamma_2",
             "Ep_2_eV",
             "E0_2_eV",
             "Eu_2_eV",
-            "A_fun (unitless?)",
-            "E_0_fun_eV",
-            "gamma_fun",
+            "A_ho (unitless?)",
+            "E0_ho_eV",
+            "gamma_ho",
         ]
 
     def build_structure(self, params: Sequence[float]):
@@ -179,10 +256,13 @@ class CodyLorentzRoughFilmModelTwoCody(CodyLorentzRoughFilmModel):
             Ep_2,
             E0_2,
             Eu_2,
-            A_fun,
-            E0_fun,
-            gamma_fun,
+            A_ho,
+            E0_ho,
+            gamma_ho,
         ) = params
+
+        Et_1 = Eg + Et_1
+        Et_2 = Eg + Et_2
 
         film_dispersion_1 = CodyLorentz(
             Eg=Eg,
@@ -204,10 +284,10 @@ class CodyLorentzRoughFilmModelTwoCody(CodyLorentzRoughFilmModel):
             Eu=Eu_2,
         )
 
-        film_dispersion_3 = LorentzEnergy().add(
-            A= A_fun,
-            E = E0_fun,
-            gamma = gamma_fun,
+        film_dispersion_3 = HarmonicOscillator().add(
+            A= A_ho,
+            E0 = E0_ho,
+            gamma = gamma_ho,
 
         )
 
@@ -232,14 +312,31 @@ class CodyEllipsometryFitter:
         psi_model, delta_model = self.model.evaluate(params, self.dataset)
 
         if np.any(~np.isfinite(psi_model)) or np.any(~np.isfinite(delta_model)):
+            self.dataset.delta_residual = np.zeros_like(self.dataset.delta_exp)
             return np.ones(len(self.dataset.psi_exp) * 2) * 1e6
 
         self.dataset.delta_residual = (delta_model - self.dataset.delta_exp + 180) % 360 - 180
         return np.concatenate([psi_model - self.dataset.psi_exp, self.dataset.delta_residual])
 
-    def fit(self, initial_params: Sequence[float], bounds: Sequence[Sequence[float]]):
-        result = least_squares(self.residuals, x0=np.asarray(initial_params, dtype=float), bounds=bounds)
-        self.psi_model, self.delta_model = self.model.evaluate(result.x, self.dataset)
+    def fit(self, initial_params, bounds):
+        result = least_squares(
+            self.residuals,
+            x0=np.asarray(initial_params, dtype=float),
+            bounds=bounds,
+            method="trf",
+            jac="2-point",
+            x_scale="jac",
+            max_nfev=200,
+            verbose=2,
+            ftol=1e-6,
+            xtol=1e-6,
+            gtol=1e-6,
+        )
+
+        self.psi_model, self.delta_model = self.model.evaluate(
+            result.x, self.dataset
+        )
+
         return result
 
     def run(self, initial_params: Sequence[float], bounds: Sequence[Sequence[float]]) -> None:
@@ -353,6 +450,9 @@ class CodyEllipsometryFitter:
             handle.write(f"Message: {fit.message}\n")
             handle.write(f"Number of iterations: {fit.nfev}\n")
             handle.write("Best fit parameters:\n")
+            handle.write(f"Mean squared error: {np.mean(fit.fun**2):.6f}\n")
+            handle.write(f"Timestamp: {self.timestamp}\n")
+            handle.write(f"Using function: {self.model.__class__.__name__}\n")
             for idx, name in enumerate(self.model.parameter_names):
                 handle.write(f"  {name}:\t{fit.x[idx]:.4f}\n")
 

@@ -4,7 +4,6 @@ import sys
 from load_data import load_elippso_data
 from cody_ellipsometry_fitting import (
     CodyEllipsometryFitter,
-    CodyLorentzRoughFilmModel,
     CodyLorentzRoughFilmModelTwoCody,
     MeasurementDataset,
 )
@@ -24,83 +23,82 @@ def main() -> None:
     print(f"Using {len(dataset.fit_angles)} measurement angles with {len(dataset.wavelength_exp)} total data points.")
 
     use_two_cody = True
-    model = CodyLorentzRoughFilmModelTwoCody() if use_two_cody else CodyLorentzRoughFilmModel()
+    model = CodyLorentzRoughFilmModelTwoCody()
     fitter = CodyEllipsometryFitter(dataset, model)
 
     if use_two_cody:
         fitter.run(
             initial_params=[
-                100.0,  # film_1_thickness_nm
+                100.0,  # film_thickness_nm
                 2.0,    # roughness_thickness_nm
 
-                1.5,    # Eg_1_eV
-                50.0,   # A_1_eV
-                0.2,    # Et_1_eV
-                1.2,    # gamma_1
-                0.8,    # Ep_1_eV
-                2.6,    # E0_1_eV
-                0.07,   # Eu_1_eV
+                1.866,  # Eg_eV
+                12.46,  # A_1_eV
+                0.1,    # Et_1_eV; avoid the singular Et=0 boundary in elli
+                1.15,   # gamma_1
+                0.787,  # Ep_1_eV
+                2.789,  # E0_1_eV
+                0.1,    # Eu_1_eV; avoids overflow in elli's inactive tail branch
 
-                20.0,   # A_2_eV
-                0.3,    # Et_2_eV
-                1.2,    # gamma_2
-                1.5,    # Ep_2_eV
-                3.7,    # E0_2_eV
-                0.1,    # Eu_2_eV
-                3.4,
-                1.9,
-                5.5,
+                13.1,   # A_2_eV
+                0.391,  # Et_2_eV
+                1.32,   # gamma_2
+                2.02,   # Ep_2_eV
+                4.08,   # E0_2_eV
+                2.0,    # Eu_2_eV
+
+                3.43,   # A_HO
+                5.54,   # E0_HO_eV
+                1.87,   # gamma_HO
             ],
             bounds=(
                                 [
-                    5.0,     # film1
+                    10.0,     # film
                     0.5,     # roughness
 
-                    0.7,     # Eg1
-                    5.0,     # A1
-                    0.0,     # Et1
-                    0.5,     # gamma1
+                    0.5,     # Eg
+                    1.0,     # A1
+                    0.001,   # Et1
+                    0.1,     # gamma1
                     0.4,     # Ep1
                     1.8,     # E01
-                    0.0,     # Eu1
+                    0.05,    # Eu1
 
-                    5.0,     # A2
+                    1.0,     # A2
                     0.0,     # Et2
-                    0.5,     # gamma2
+                    0.1,     # gamma2
                     0.5,     # Ep2
                     3.0,     # E02
                     0.0,     # Eu2
                     
-                    1,
-                    1,
-                    1,
+                    0.1,     # A_HO
+                    3.0,     # E0_HO
+                    0.1,     # gamma_HO
                 ],
                 [
-                    100.0,
+                    300.0,
                     10.0,
 
                     2.2,
-                    150.0,
-                    0.5,
+                    100.0,
                     2.0,
+                    3.0,
                     2.5,
-                    3.5,
-                    0.6,
+                    4.0,
+                    1.0,
 
-                    50.0,
+                    100.0,
                     2.0,
-                    2.0,
+                    5.0,
                     3.5,
                     4.5,
                     2.0,
 
-                    4,
-                    4,
-                    7,
+                    50.0,
+                    7.0,
+                    3.0,
                 ])
         )
-    else:
-        pass
 
 if __name__ == "__main__":
     main()
