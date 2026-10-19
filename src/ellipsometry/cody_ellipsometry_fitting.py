@@ -456,3 +456,36 @@ class CodyEllipsometryFitter:
             for idx, name in enumerate(self.model.parameter_names):
                 handle.write(f"  {name}:\t{fit.x[idx]:.4f}\n")
 
+def calculate_optical_constants(
+    params: Sequence[float],
+    wavelengths_nm: Sequence[float]
+) -> tuple[np.ndarray, np.ndarray]:
+    """Calculate bulk-film n and k for the single Cody-Lorentz fit."""
+    params = np.asarray(params, dtype=float)
+    wavelengths_nm = np.asarray(wavelengths_nm, dtype=float)
+
+    if params.shape != (10,):
+        raise ValueError("Expected the 10 single-Cody fit parameters.")
+
+    if (wavelengths_nm.ndim != 1
+        or not np.all(np.isfinite(wavelengths_nm))
+        or np.any(wavelengths_nm <= 0)):
+        raise ValueError("Invalid wavelengths.")
+
+    _, _, Eg, A, Et_offset, gamma, Ep, E0, Eu, _ = params
+
+    dispersion = CodyLorentz(
+        Eg=Eg,
+        A=A,
+        Et=Eg + Et_offset,
+        gamma=gamma,
+        Ep=Ep,
+        E0=E0,
+        Eu=Eu,
+    )
+
+    complex_index = np.asarray(
+        dispersion.get_refractive_index(wavelengths_nm)
+    )
+
+    return complex_index.real, complex_index.imag

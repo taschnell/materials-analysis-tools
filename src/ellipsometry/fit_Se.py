@@ -2,7 +2,7 @@
 import sys
 
 from load_data import load_elippso_data
-from cody_ellipsometry_fitting import CodyLorentzRoughFilmModel, CodyEllipsometryFitter, MeasurementDataset
+from cody_ellipsometry_fitting_with_nk import CodyLorentzRoughFilmModel, CodyEllipsometryFitter, MeasurementDataset
 
 
 def main() -> None:
@@ -22,10 +22,10 @@ def main() -> None:
     fitter = CodyEllipsometryFitter(dataset, model)
 
     fitter.run(
-        initial_params=[106.0, 3.6, 1.95, 50.0, 0.2, 2.4, 0.35, 5.9, 0.07,0.5],
+        initial_params=[106.0, 3.6, 1.95, 50.0, 0.2, 2.4, 0.35, 5.9, 0.07],
         bounds=(
-            [50.0, 0.0, 1.85, 1.0, 0.01, 0.05, 0.01, 1.0, 0.01,0.2],
-            [170.0, 10.0, 2.2, 200.0, 0.5, 10.0, 1.0, 20.0, 0.15,0.8],
+            [50.0, 0.0, 1.85, 1.0, 0.01, 0.05, 0.01, 1.0, 0.01],
+            [170.0, 10.0, 2.2, 200.0, 0.5, 10.0, 1.0, 20.0, 0.15],
         ),
     )
 

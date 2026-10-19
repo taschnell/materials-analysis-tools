@@ -2,7 +2,7 @@
 import sys
 
 from load_data import load_elippso_data
-from cody_ellipsometry_fitting import (
+from cody_ellipsometry_fitting_with_nk import (
     CodyEllipsometryFitter,
     CodyLorentzRoughFilmModelTwoCody,
     MeasurementDataset,
@@ -53,8 +53,8 @@ def main() -> None:
             ],
             bounds=(
                                 [
-                    10.0,     # film
-                    0.5,     # roughness
+                    10.0,    # film
+                    0.0,     # roughness
 
                     0.5,     # Eg
                     1.0,     # A1

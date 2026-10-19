@@ -19,7 +19,7 @@ class HarmonicOscillator(Dispersion):
             dtype=float
         )
 
-        epsilon = np.ones_like(energy, dtype=complex)
+        epsilon = np.zeros_like(energy, dtype=complex)
 
         for p in self.rep_params:
             A = p["A"]
